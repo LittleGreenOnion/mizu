@@ -1,3 +1,3 @@
 Build:
 
-cmake -H. -Bbuild;cd ../build;make main
+cd mizu;cmake -H. -Bbuild;cd build;make main
