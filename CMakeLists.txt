@@ -12,7 +12,7 @@ set(SOURCE_FILES
   src/main.cpp
   src/order.cpp
   src/utils.cpp
-  src/trader.h)
+  src/exchange_engine.cpp)
 
 add_executable(main ${SOURCE_FILES})
 target_link_libraries(main pthread)

@@ -8,13 +8,13 @@ bool operator==(const Transaction& lhs, const Transaction& rhs) {
          lhs._sold == rhs._sold && lhs._price == rhs._price;
 }
 
-Transaction Order::exchange(Order& target, shared_ptr<Trader> targetTrader, unsigned marketPrice) {
+Transaction exchange(Order& leftOrder, Order& rightOrder, unsigned marketPrice) {
   static const Transaction empty;
-  if (getSide() == target.getSide()) /*[[unlikely]] (since C++20)*/
+  if (leftOrder.getSide() == rightOrder.getSide()) /*[[unlikely]] (since C++20)*/
     return empty;
 
-  Order& sell = getSide() ? *this : target;
-  Order& buy  = getSide() ? target : *this;
+  Order& sell = leftOrder.getSide() ? leftOrder : rightOrder;
+  Order& buy = leftOrder.getSide() ? rightOrder : leftOrder;
 
   if (sell.getClientId() == buy.getClientId())
     return empty;
@@ -29,7 +29,11 @@ Transaction Order::exchange(Order& target, shared_ptr<Trader> targetTrader, unsi
   if (buyPrice < sellPrice)
     return empty;
 
-  auto buyer = getSide() ? targetTrader : _client;
+  auto buyer = buy.getClient();
+  auto seller = sell.getClient();
+
+  if (!buyer || !seller)
+    return empty;
 
   lock_guard<mutex> buyMutex(buy.getMutex());
   lock_guard<mutex> sellMutex(sell.getMutex());
@@ -39,6 +43,8 @@ Transaction Order::exchange(Order& target, shared_ptr<Trader> targetTrader, unsi
 
   // Find an equilibrium price
   const unsigned price = (buyPrice + sellPrice) / 2;
+  if (!price)
+    return empty;
 
   do {
     // Find how many orders buyer can purchase
@@ -50,17 +56,13 @@ Transaction Order::exchange(Order& target, shared_ptr<Trader> targetTrader, unsi
     if (!buyer->decreaseBalance(quantity * price))
       continue; // Failed to purchase, try again
 
-    auto seller = getSide() ? _client : targetTrader;
     seller->increaseBalance(quantity * price);
+
 
     buy.decreaseQuantity(quantity);
     sell.decreaseQuantity(quantity);
 
-
-   cout << "Exchange: id = " << buy.getExchangeId() << ", price = " << buyPrice << ", quantity = " << buy.getQuantity() << "   and   " <<
-           "Exchange: id = " << sell.getExchangeId() << ", price = " << sellPrice << ", quantity = " << sell.getQuantity() <<
-           " | sold quantity " << quantity << ", price " << price << ", marketPrice: " << marketPrice << endl;
-
+    cout << "Exchange orders id " << buy.getExchangeId() << " and " << sell.getExchangeId() << " for price " << price << " in amount of " << quantity << endl;
     return Transaction(sell.getExchangeId(), buy.getExchangeId(), quantity, price);
   } while (true);
 

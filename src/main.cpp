@@ -3,14 +3,53 @@
 
 using namespace std;
 
-int main() {
-  // Usage example
-  ExchangeEngine<> engine;
+void threadTest() {
+  ExchangeEngine engine;
 
   shared_ptr<Trader> tr0 = make_shared<Trader>(0);
   shared_ptr<Trader> tr1 = make_shared<Trader>(1);
 
-  unsigned exchangeId = 0;
+  atomic<unsigned> exchangeId;
+  exchangeId = 0;
+
+  tr0->increaseBalance(10000);
+  tr1->increaseBalance(10000);
+
+  auto foo = [&](shared_ptr<Trader> client) {
+    for (int i = 0; i != 1000; ++i) {
+      unsigned price = rand() % 200;
+      unsigned quantity = rand() % 10;
+      bool side = rand() % 2;
+      engine.placeOrder({client, exchangeId++, price, quantity, side, false});
+    }
+  };
+
+  thread th0(foo, tr0);
+  thread th1(foo, tr1);
+  th0.join();
+  th1.join();
+
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  cout << "tr0 " << tr0->getBalance() << endl;
+  cout << "tr1 " << tr1->getBalance() << endl;
+  engine.print();
+
+  cout << "Transaction History" << endl;
+  VariadicTable<unsigned, unsigned, unsigned, unsigned> vt({"exchange id sell order", "exchange id buy order", "sold", "price"});
+  for (const auto& item : engine.getLastTransactions(999))
+    vt.addRow(item._exchangeIdSeller, item._exchangeIdBuyer, item._sold, item._price);
+  vt.print(std::cout);
+}
+
+int main() {
+  // Playground
+  ExchangeEngine engine;
+
+  shared_ptr<Trader> tr0 = make_shared<Trader>(0);
+  shared_ptr<Trader> tr1 = make_shared<Trader>(1);
+
+  atomic<unsigned> exchangeId;
+  exchangeId = 0;
 
   engine.placeOrder({tr0, exchangeId++, 100, 1, true, false}); // sell
   engine.print();
@@ -62,9 +101,8 @@ int main() {
 
   cout << "Transaction History" << endl;
   VariadicTable<unsigned, unsigned, unsigned, unsigned> vt({"exchange id sell order", "exchange id buy order", "sold", "price"});
-  for (const auto& item : engine.getLastTransactions(999)) {
+  for (const auto& item : engine.getLastTransactions(999))
     vt.addRow(item._exchangeIdSeller, item._exchangeIdBuyer, item._sold, item._price);
-  }
   vt.print(std::cout);
 
 

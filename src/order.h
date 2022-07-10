@@ -82,11 +82,6 @@ struct Order {
     _quantity -= quantity;
   }
 
-  // Try to execute sell/buy between this order and targeted order 
-  // @param order to exchange with
-  // @param market price
-  Transaction exchange(Order& target, std::shared_ptr<Trader> targetTrader, unsigned marketPrice);
-
   // @returns Order's mutex
   std::mutex& getMutex() {
     return _mutex;
@@ -111,3 +106,10 @@ private:
   std::mutex _mutex;
   bool _toDelete = false;
 };
+
+// Try to make a transaction between orders
+// @param order to sell/buy
+// @param order to sell/buy
+// @param market price
+// @returns a transaction result. empty transaction if the transaction is unsuccessful.
+Transaction exchange(Order& leftOrder, Order& rightOrder, unsigned marketPrice);
